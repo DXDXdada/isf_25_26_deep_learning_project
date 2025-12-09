@@ -4,7 +4,8 @@ to do list
 - [] add the names of the group
 - [] readme : rework the the jupyter notebooks description
 - [] format each notebook accordingly + add good description for each cell output
-
+- [] add references + reference to my internship @calgary
+- [] add a part for the use of chatgpt in the readme
 
 # Deep Learning for Asset Price Movement Prediction
 
