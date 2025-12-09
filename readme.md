@@ -6,6 +6,8 @@ to do list
 - [] format each notebook accordingly + add good description for each cell output
 - [] add references + reference to my internship @calgary
 - [] add a part for the use of chatgpt in the readme
+- [] maybe grid search on the lookback window size => notebook 3
+- [] for data splitting in notebook 3, should we mix up the data to avoid having trends ? 
 
 # Deep Learning for Asset Price Movement Prediction
 
