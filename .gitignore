@@ -1,5 +1,7 @@
 /data
-/data_new
+/data_new/data_processed
+/data_new/scalers
+/data_new/sequences
 /models
 /notebooks
 /results
