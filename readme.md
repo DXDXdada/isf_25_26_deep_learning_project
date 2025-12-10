@@ -27,6 +27,8 @@ At first, we tried predicting exact closing prices. That turned out to be way to
 
 We'll answer each question from the problem statement using our experiments.
 
+We tried to interpret the results directly on the notebooks, however this readme summarizes the main findings.
+
 **Note:**
 We didn't test every deep learning model out there. Time was limited, so we picked a few architectures that looked promising based on what we read in recent papers.
 
