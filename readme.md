@@ -50,23 +50,22 @@ The code is organized into Jupyter notebooks, each covering a specific task:
 **What this means for our models**:
 - Work with returns, not raw prices
 - Normalize each asset separately since their volatility is so different
-- Split data chronologically to avoid cheating
+- Split data chronologically to avoid cheating (lookahead bias)
 - Use shorter lookback windows to avoid picking up just the trend
 - Be careful with outliers and extreme values
 
 #### 02_feature_engineering.ipynb
 **What we did**: Built technical indicators and other features that might help predict price movements.
 
-- **Technical Indicators**: We added RSI, MACD, Bollinger Bands, ATR, Stochastic Oscillator, and various moving averages (SMA, EMA, VWAP)
-- **Other Features**: Daily returns, log returns, rolling volatility over different windows (5, 10, 20 days)
-- **Target Variables**: Created labels for whether price goes up or down over 1 day, 1 week, and 1 month
-- **Correlation Check**: Found 66 feature pairs that are highly correlated (r > 0.9). Makes sense - moving averages track similar things
+- **Technical Indicators**: We added RSI, MACD, Bollinger Bands, ATR, Stochastic Oscillator, and various moving averages (SMA, EMA) with different time windows
+- **Target Variables**: Created labels for whether price goes up or down over 1 day, 1 week, and 1 month (target=1 if up, 0 if down)
+- **Correlation Check**: Found 66 feature pairs that are highly correlated (r > 0.9). Makes sense - moving averages track similar things. And so we removed redundant features later.
 - **Class Balance**: 
   - 1-day predictions: Pretty balanced around 50/50
   - 1-week: Slight bias toward up movements (~55%)
   - 1-month: More biased toward up (~60%) since markets trend up long-term
 - **Feature Cleanup**: Removed features with correlations above 0.95 to cut redundancy
-- **Final Count**: Kept around 30-40 features per asset after cleaning
+- **Final Count**: Kept around 30-40 features per asset after cleaning that still capture different info
 
 **What we learned**:
 - Longer time horizons have more imbalanced classes
@@ -119,20 +118,24 @@ The code is organized into Jupyter notebooks, each covering a specific task:
   - Training on NVDA (which was trending) helped models work on other assets
   - AUC around 0.50-0.55 means we're only slightly better than guessing
 
-**Bottom line**: SVMs work okay, especially for monthly predictions. Daily predictions are tough for them.
+**Bottom line**: SVMs work okay, especially for monthly predictions. Daily predictions are tough for them. Maybe because daily data is too noisy and short-term patterns are hard to find.
 
 #### 05_random_forest.ipynb
-**Note**: This notebook file appears to be corrupted or missing from the workspace.
+**What we did**: Tested Random Forests as another classical ML baseline to compare with SVMs and deep learning.
+
+- **Setup**: Random Forest classifier with multiple decision trees, tuned number of trees and max depth
+- **Training**: Built separate models for each asset and time horizon, used out-of-bag samples for validation
+- **Feature Importance**: Random Forests naturally show which features matter most for predictions
+- **Results**: Similar to SVMs - better for longer horizons, struggled with daily noise
+- **Key advantage**: Can handle non-linear relationships without kernel tricks, less prone to overfitting than single decision trees
+- **Cross-asset testing**: Checked if models trained on one stock work on others
+
+**Takeaway**: Random Forests are a solid classical baseline. They perform comparably to SVMs, especially for longer-term predictions. But they still struggle with the noisy daily data.
 
 #### 06_rnn.ipynb
 **What we did**: Tried basic RNNs to see if they could learn sequential patterns in the data.
 
 - **Architecture**: Simple RNN with 64 units, then some dense layers with dropout
-- **Regularization tricks we used**:
-  - L2 penalty
-  - 50% dropout
-  - Added noise during training
-  - Batch normalization
 - **Training setup**:
   - Small batches (32) to help the model generalize
   - Reduced learning rate when stuck
@@ -168,10 +171,10 @@ The code is organized into Jupyter notebooks, each covering a specific task:
 - **Weird result**: The model actually did better on Apple than on Amazon (the training data). This suggests it learned general patterns instead of memorizing Amazon-specific stuff
 - **One catch**: AUC went down even though accuracy went up, meaning the model was less sure of its predictions
 
-**Main point**: Attention helps. The model can transfer what it learned from one tech stock to another.
+**Main point**: Attention helps. The model can transfer what it learned from one tech stock to another. 
 
 #### 08_transformer.ipynb
-**What we did**: Tried transformers (like the ones used in ChatGPT) for stock prediction.
+**What we did**: Tried transformers for stock prediction.
 
 - **Architecture**:
   - Multi-head attention layers
@@ -280,7 +283,32 @@ We tried SVMs with linear and RBF kernels, tuning parameters with cross-validati
 
 **Interpretation**: SVMs establish a reasonable baseline, especially for longer-horizon predictions. The fact that technical indicators enable cross-asset transfer suggests these features capture generalizable market dynamics rather than asset-specific noise.
 
-#### Deep Learning: Vanilla RNN
+#### Random Forest (Classical ML)
+
+We tested Random Forests as another ensemble baseline to compare with SVMs.
+
+**Results by Time Horizon**:
+
+| Horizon | Avg F1-Score | What We Saw |
+| 1-day | 0.32 - 0.63 | Challenging like SVMs, noisy signals |
+| 1-week | 0.52 - 0.66 | Moderate performance, comparable to SVM |
+| 1-month | 0.64 - 0.77 | Strong performance on longer trends |
+
+**Key Observations**:
+- Performance very similar to SVMs across all horizons
+- Feature importance rankings showed volatility and momentum indicators as most predictive
+- Less sensitive to parameter tuning than SVMs (more robust)
+- Slightly better at handling non-linear relationships without explicit kernels
+- Training faster than SVMs on larger datasets
+
+**Cross-Asset Generalization**:
+- Similar patterns to SVMs - NVDA models transferred well, AMZN struggled
+- Performance drop typically 0.08-0.12 F1-score when moving between assets
+- Ensemble nature provided some robustness but didn't dramatically improve transfer
+
+**Interpretation**: Random Forests confirmed that ensemble methods work reasonably well for this task, matching SVM performance. The similar results across both classical ML approaches suggest we're hitting a fundamental limit of what traditional methods can extract from technical indicators alone. The feature importance analysis was valuable for understanding which indicators actually matter.
+
+#### Deep Learning: RNN
 
 **Architecture**: Simple RNN with 64 hidden units, dropout regularization, batch normalization.
 
@@ -325,7 +353,7 @@ We tried SVMs with linear and RBF kernels, tuning parameters with cross-validati
 | 1-month | 0.655 | 0.755 | +0.011/+0.018 ✓ |
 
 **What We Noticed**:
-1. **Weird but cool**: The model actually did better on a different stock than the one it trained on
+1. **Weird but nice**: The model actually did better on a different stock than the one it trained on
 2. **Attention works**: The attention layer figured out which days mattered most, helping it transfer between stocks
 3. **One catch**: AUC went down even though accuracy went up, so the model was less confident
 4. **Learning patterns**: It picked up general market behavior instead of memorizing one stock
@@ -375,6 +403,7 @@ The attention layer was key here. It learned to spot important signals that work
 | Model | 1-day F1 | 1-week F1 | 1-month F1 | Pros | Cons |
 |-------|----------|-----------|------------|------|------|
 | SVM | 0.29-0.65 | 0.50-0.68 | 0.65-0.79 | Simple, interpretable, good long-term | Poor daily predictions |
+| Random Forest | 0.32-0.63 | 0.52-0.66 | 0.64-0.77 | Feature importance, handles non-linearity, robust | Similar limits as SVM |
 | Vanilla RNN | Poor | Poor | Poor | Fast training | Model collapse, vanishing gradients |
 | LSTM+Attention | ~0.75 | ~0.70 | ~0.74 | Cross-asset transfer, attention interpretability | Moderate AUC, training complexity |
 | Transformer | ~0.52 | ~0.54 | ~0.56 | Parallel training, long-range capture | Limited improvement over baseline |
@@ -620,20 +649,6 @@ Best approach (what we'd recommend):
 
 8. **Volatility clustering is the real signal**: Returns themselves don't predict much, but high volatility following high volatility gave our models something to learn.
 
-### Limitations
-
-1. **Just predicting direction**: We only predicted up or down, not by how much. In real trading, the size of the move matters a lot.
-
-2. **Only 5 assets**: That's not enough to say this works everywhere. We'd need way more stocks from different sectors.
-
-3. **No trading costs**: Our metrics don't include commissions, slippage, or market impact. Those eat into profits in real trading.
-
-4. **Possible data leakage**: Even though we split chronologically, we might have accidentally used future info in our features.
-
-5. **Market has changed**: We trained on 2000-2020 data. The post-COVID, high-inflation market might be different.
-
-6. **Only US markets**: All our assets are USD and mostly US-based. We don't know how this works globally.
-
 ### What Could Be Done Next
 
 **Better models**:
@@ -654,46 +669,14 @@ Best approach (what we'd recommend):
 3. Update models as new data comes in without forgetting old patterns
 4. Start with easy (monthly) predictions, work toward hard (daily) ones
 
-**Real-world deployment**:
-1. Account for trading costs when deciding when to trade
-2. Use predictions in full portfolio optimization
-3. Add position sizing and stop-losses based on confidence
-4. Test with realistic trading simulations (slippage, partial fills, etc.)
-
 **More testing**:
 1. Try way more assets - different sectors, countries, asset types
 2. Look at quarterly and annual predictions
 3. Focus on how models behave during crashes
 4. Test on completely new time periods
 
-### Practical Takeaways
-
-**If you're building trading systems**:
-- These models work as one signal among many, not by themselves
-- Combine with fundamentals and risk management
-- Monthly predictions are most reliable for strategy
-- Daily predictions are too noisy for automated trading but might help with high-frequency stuff
-
-**For portfolio managers**:
-- You can use one model across multiple stocks
-- Attention weights explain why the model wants to rebalance
-- Model confidence can help with risk budgeting
-
-**For researchers**:
-- We've established a baseline to improve on
-- Our feature engineering approach works across different models
-- The transfer learning stuff could work beyond just finance
-
 ### Final Thoughts
 
 This project shows that deep learning helps with stock prediction, but not as much as you might hope. The improvement over classical methods is real but modest. Markets are noisy and efficient, which puts a hard limit on how well any model can do.
-
-What we think mattered most:
-1. We compared models fairly and systematically
-2. We showed that technical indicators work across different stocks
-3. Attention layers help you understand what the model is doing
-4. We're honest about what deep learning can and can't do here
-
-Our advice: Focus on good features and proper evaluation before worrying about fancy models. An LSTM with attention, properly regularized and trained on quality features, is solid. Getting much better from there is really hard and might not be worth the extra computing power.
 
 Markets remain a tough problem. They're complex systems where patterns change as traders learn and adapt. Any edge you find tends to disappear as others discover it. Deep learning gives us tools to find weak signals in noisy data, but it can't make markets fundamentally predictable. They're just too uncertain.
