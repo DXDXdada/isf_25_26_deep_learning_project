@@ -2,7 +2,7 @@
 By : 
 - Saad Benjelloun
 - Ibrahim Abdelatif
-- Zihan Chen
+- Zhihan Chen
 - Loraine Dicko
 - Clément Rougeron
 
